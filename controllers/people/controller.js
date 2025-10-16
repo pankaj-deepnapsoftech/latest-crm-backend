@@ -56,7 +56,6 @@ const createPeople = TryCatch(async (req, res) => {
   });
 });
 
-
 const editPeople = TryCatch(async (req, res) => {
   //   const { peopleId, firstname, lastname, email, phone, company } = req.body;
   const { peopleId, firstname, lastname, email, phone } = req.body;
@@ -178,6 +177,7 @@ const allPersons = TryCatch(async (req, res) => {
   const results = people.map((p) => {
     return {
       _id: p._id,
+      uniqueId: p.uniqueId,
       firstname: p.firstname,
       lastname: p.lastname,
       phone: p.phone,
