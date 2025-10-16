@@ -56,7 +56,6 @@ const createPeople = TryCatch(async (req, res) => {
   });
 });
 
-
 const editPeople = TryCatch(async (req, res) => {
   //   const { peopleId, firstname, lastname, email, phone, company } = req.body;
   const { peopleId, firstname, lastname, email, phone } = req.body;

@@ -123,6 +123,32 @@ companySchema.pre(
   }
 );
 
+// Auto-generate sequential uniqueId per organization on save if missing
+companySchema.pre("save", async function (next) {
+  try {
+    if (this.uniqueId || !this.organization) return next();
+    const prefix = "CORP-";
+    const latest = await this.constructor
+      .findOne({
+        organization: this.organization,
+        uniqueId: { $regex: `^${prefix}\\d{6}$` },
+      })
+      .sort({ uniqueId: -1 })
+      .select("uniqueId")
+      .lean();
+    let nextNum = 1;
+    if (latest?.uniqueId) {
+      const current = parseInt(latest.uniqueId.slice(-6), 10);
+      if (!Number.isNaN(current)) nextNum = current + 1;
+    }
+    const suffix = String(nextNum).padStart(6, "0");
+    this.uniqueId = `${prefix}${suffix}`;
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
+
 companySchema.pre(
   "deleteMany",
   { document: true, query: true },
