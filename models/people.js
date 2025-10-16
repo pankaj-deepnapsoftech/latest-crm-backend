@@ -53,9 +53,39 @@ const peopleSchema = mongoose.Schema(
     whatsappSentDate: {
       type: Date,
     },
+    uniqueId: {
+      type: String,
+      unique: true,
+      index: true,
+    },
   },
   { timestamps: true }
 );
+
+peopleSchema.pre("save", async function (next) {
+  if (!this.isNew || this.uniqueId) return next();
+  const gen = () => `IND-${Array.from({ length: 3 }, () => Math.floor(Math.random() * 9) + 1).join("")}`;
+  try {
+    let attempts = 0;
+    let candidate = gen();
+    while (attempts < 5) {
+      // eslint-disable-next-line no-await-in-loop
+      const exists = await this.constructor.exists({ uniqueId: candidate });
+      if (!exists) {
+        this.uniqueId = candidate;
+        break;
+      }
+      attempts += 1;
+      candidate = gen();
+    }
+    if (!this.uniqueId) {
+      return next(new Error("Failed to generate uniqueId for People after multiple attempts"));
+    }
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+});
 
 peopleSchema.pre(
   "create",

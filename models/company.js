@@ -37,9 +37,65 @@ const companySchema = mongoose.Schema(
     gst_no: {
       type: String,
     },
+    address: {
+      type: String,
+    },
+    secondPersonName: {
+      type: String,
+    },
+    secondPersonContact: {
+      type: String,
+    },
+    secondPersonDesignation: {
+      type: String,
+    },
+    status: {
+      type: String,
+      default: "Not Pick",
+    },
+    otp: {
+      type: Number,
+    },
+    expiry: {
+      type: String,
+    },
+    verify: {
+      type: Boolean,
+      default: false,
+    },
+    uniqueId: {
+      type: String,
+      unique: true,
+      index: true,
+    },
   },
   { timestamps: true }
 );
+
+companySchema.pre("save", async function (next) {
+  if (!this.isNew || this.uniqueId) return next();
+  const gen = () => `COR-${Array.from({ length: 3 }, () => Math.floor(Math.random() * 9) + 1).join("")}`;
+  try {
+    let attempts = 0;
+    let candidate = gen();
+    while (attempts < 5) {
+      // eslint-disable-next-line no-await-in-loop
+      const exists = await this.constructor.exists({ uniqueId: candidate });
+      if (!exists) {
+        this.uniqueId = candidate;
+        break;
+      }
+      attempts += 1;
+      candidate = gen();
+    }
+    if (!this.uniqueId) {
+      return next(new Error("Failed to generate uniqueId for Company after multiple attempts"));
+    }
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+});
 
 companySchema.pre(
   "create",

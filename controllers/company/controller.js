@@ -1,9 +1,11 @@
 const { omitUndefined } = require("mongoose");
 const { TryCatch, ErrorHandler } = require("../../helpers/error");
 const companyModel = require("../../models/company");
+const { SendMail } = require("../../config/nodeMailer.config");
+const { generateOTP } = require("../../utils/generateOtp");
 
 const createCompany = TryCatch(async (req, res) => {
-  const { companyname, email, website, contact, phone, gst_no } = req.body;
+  const { companyname, email, website, contact, phone, gst_no, address, secondPersonName, secondPersonContact, secondPersonDesignation, status } = req.body;
 
   let isExistingCompany = await companyModel.findOne({ email });
   if (isExistingCompany) {
@@ -27,6 +29,9 @@ const createCompany = TryCatch(async (req, res) => {
   const formattedCompanyName = formatName(companyname.trim());
   const formattedContact = formatName(contact?.trim());
 
+  // Generate OTP for email verification
+  const { otp, expiresAt } = generateOTP();
+
   const company = await companyModel.create({
     organization: req.user.organization,
     creator: req.user.id,
@@ -36,7 +41,24 @@ const createCompany = TryCatch(async (req, res) => {
     phone,
     website,
     gst_no,
+    address,
+    secondPersonName,
+    secondPersonContact,
+    secondPersonDesignation,
+    status,
+    otp,
+    expiry: expiresAt,
+    verify: false,
   });
+
+  // Send OTP email if email is provided
+  if (email) {
+    SendMail(
+      "OtpVerification.ejs",
+      { userName: formattedContact || formattedCompanyName, otp },
+      { email, subject: "OTP Verification" }
+    );
+  }
 
   res.status(200).json({
     status: 200,
@@ -48,7 +70,7 @@ const createCompany = TryCatch(async (req, res) => {
 
 
 const editCompany = TryCatch(async (req, res) => {
-  const { companyId, name, email, website, contact, phone, gst_no } = req.body;
+  const { companyId, companyname, name, email, website, contact, phone, gst_no, address, secondPersonName, secondPersonContact, secondPersonDesignation, status } = req.body;
 
   const company = await companyModel.findById(companyId);
 
@@ -80,7 +102,7 @@ const editCompany = TryCatch(async (req, res) => {
 
   const updatedCompany = await companyModel.findOneAndUpdate(
     { _id: companyId },
-    { name, email, phone, contact, website, gst_no },
+    { companyname: companyname || name, email, phone, contact, website, gst_no, address, secondPersonName, secondPersonContact, secondPersonDesignation, status },
     { new: true }
   );
 
@@ -116,6 +138,46 @@ const deleteCompany = TryCatch(async (req, res) => {
     message: "Corporate has been deleted successfully",
     company: deletedCompany,
   });
+});
+
+// Verify Company OTP
+const CompanyOtpVerification = TryCatch(async (req, res) => {
+  const { otp } = req.body;
+  const { id } = req.params;
+
+  const company = await companyModel.findById(id);
+  if (!company) {
+    return res.status(404).json({ message: "Corporate not found" });
+  }
+  const now = Date.now();
+  if (now > company.expiry) {
+    return res.status(400).json({ message: "OTP expired" });
+  }
+  if (otp !== company.otp) {
+    return res.status(404).json({ message: "Wrong OTP" });
+  }
+  await companyModel.findByIdAndUpdate(id, { verify: true });
+  return res.status(200).json({ message: "OTP Verified Successfully", success: true });
+});
+
+// Resend Company OTP
+const CompanyResendOTP = TryCatch(async (req, res) => {
+  const { id } = req.params;
+  const company = await companyModel.findById(id);
+  if (!company) {
+    return res.status(404).json({ message: "Wrong Corporate" });
+  }
+
+  const { otp, expiresAt } = generateOTP();
+  if (company.email) {
+    SendMail(
+      "OtpVerification.ejs",
+      { userName: company.contact || company.companyname, otp },
+      { email: company.email, subject: "OTP Verification" }
+    );
+  }
+  await companyModel.findByIdAndUpdate(id, { otp, expiry: expiresAt });
+  return res.status(200).json({ message: "Resent OTP" });
 });
 
 const companyDetails = TryCatch(async (req, res) => {
@@ -164,4 +226,6 @@ module.exports = {
   deleteCompany,
   companyDetails,
   allCompanies,
+  CompanyOtpVerification,
+  CompanyResendOTP,
 };
