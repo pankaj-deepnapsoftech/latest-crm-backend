@@ -38,6 +38,12 @@ const productSchema = mongoose.Schema(
     imageUrl: {
       type: String,
     },
+    type: {
+      type: String,
+      enum: ['Product', 'Service'],
+      default: 'Product',
+      required: [true, 'Type is a required field']
+    },
     stock: {
       type: Number,
       required: [true, 'Stock is a required field']

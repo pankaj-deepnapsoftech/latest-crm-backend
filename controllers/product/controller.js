@@ -8,7 +8,7 @@ const offerModel = require("../../models/offer");
 const leadModel = require("../../models/lead");
 
 const createProduct = TryCatch(async (req, res) => {
-  const { name, categoryId, price, description, ref, imageUrl, model, stock } = req.body;
+  const { name, categoryId, price, description, ref, imageUrl, model, stock, type } = req.body;
 
   const isCategoryExists = await productCategoryModel.findById(categoryId);
   if (!isCategoryExists) {
@@ -25,7 +25,8 @@ const createProduct = TryCatch(async (req, res) => {
     model,
     creator: req.user.id,
     organization: req.user.organization,
-    stock
+    stock,
+    type
   });
 
   res.status(200).json({
