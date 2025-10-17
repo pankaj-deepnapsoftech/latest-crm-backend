@@ -12,6 +12,9 @@ const connectDB = async () => {
             bufferCommands: false, // Disable mongoose buffering
         });
         
+
+
+        
         console.log("DB connected successfully!!!");
         console.log(`MongoDB connected: ${conn.connection.host}`);
     }
