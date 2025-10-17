@@ -10,7 +10,7 @@ const proformaInvoiceModel = require("../../models/proformaInvoice");
 const { generateOTP } = require("../../utils/generateOtp");
 
 const createPeople = TryCatch(async (req, res) => {
-  const { firstname, lastname, email, phone } = req.body;
+  const { firstname, lastname, email, phone, status } = req.body;
 
   let isExistingPeople = await peopleModel.findOne({ email });
   if (isExistingPeople) {
@@ -43,6 +43,8 @@ const createPeople = TryCatch(async (req, res) => {
     lastname: formattedLastname,
     email,
     phone,
+    status,
+    isArchived: status === 'Not Interested',
     otp,
     expiry: expiresAt,
     verify: false,
@@ -58,7 +60,7 @@ const createPeople = TryCatch(async (req, res) => {
 
 const editPeople = TryCatch(async (req, res) => {
   //   const { peopleId, firstname, lastname, email, phone, company } = req.body;
-  const { peopleId, firstname, lastname, email, phone } = req.body;
+  const { peopleId, firstname, lastname, email, phone, status } = req.body;
 
   const isExistingPerson = await peopleModel.findById(peopleId);
 
@@ -89,6 +91,8 @@ const editPeople = TryCatch(async (req, res) => {
       lastname,
       email,
       phone,
+      status,
+      ...(status ? { isArchived: status === 'Not Interested' } : {}),
     },
     { new: true }
   );
@@ -149,6 +153,7 @@ const personDetails = TryCatch(async (req, res) => {
     lastname: person.lastname,
     email: person.email,
     phone: person.phone,
+    status: person.status,
     // company: person?.company ? person.company.companyname : "",
   };
 
@@ -161,15 +166,18 @@ const personDetails = TryCatch(async (req, res) => {
 
 const allPersons = TryCatch(async (req, res) => {
   let people = [];
+  const { archivedOnly = false } = req.body || {};
+
+  const archivedFilter = archivedOnly ? { isArchived: true } : { isArchived: false };
 
   if (req.user.role === "Super Admin") {
     people = await peopleModel
-      .find({ organization: req.user.organization })
+      .find({ organization: req.user.organization, ...archivedFilter })
       .sort({ createdAt: -1 })
       .populate("creator", "name");
   } else {
     people = await peopleModel
-      .find({ creator: req.user.id })
+      .find({ creator: req.user.id, ...archivedFilter })
       .sort({ createdAt: -1 })
       .populate("creator", "name");
   }
@@ -182,6 +190,7 @@ const allPersons = TryCatch(async (req, res) => {
       lastname: p.lastname,
       phone: p.phone,
       email: p.email,
+      status: p.status,
       verify: p.verify,
       creator: p.creator.name,
       createdAt: p.createdAt,

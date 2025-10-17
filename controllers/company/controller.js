@@ -46,6 +46,7 @@ const createCompany = TryCatch(async (req, res) => {
     secondPersonContact,
     secondPersonDesignation,
     status,
+    isArchived: status === 'Not Interested',
     otp,
     expiry: expiresAt,
     verify: false,
@@ -102,7 +103,7 @@ const editCompany = TryCatch(async (req, res) => {
 
   const updatedCompany = await companyModel.findOneAndUpdate(
     { _id: companyId },
-    { companyname: companyname || name, email, phone, contact, website, gst_no, address, secondPersonName, secondPersonContact, secondPersonDesignation, status },
+    { companyname: companyname || name, email, phone, contact, website, gst_no, address, secondPersonName, secondPersonContact, secondPersonDesignation, status, ...(status ? { isArchived: status === 'Not Interested' } : {}) },
     { new: true }
   );
 
@@ -202,14 +203,16 @@ const companyDetails = TryCatch(async (req, res) => {
 });
 
 const allCompanies = TryCatch(async (req, res) => {
-  const { page = 1 } = req.body;
+  const { page = 1, archivedOnly = false } = req.body;
+
+  const archivedFilter = archivedOnly ? { isArchived: true } : { isArchived: false };
 
   let companies = [];
   if (req.user.role === "Super Admin") {
-    companies = await companyModel.find({organization: req.user.organization}).sort({ createdAt: -1 }).populate('creator', 'name');
+    companies = await companyModel.find({organization: req.user.organization, ...archivedFilter}).sort({ createdAt: -1 }).populate('creator', 'name');
   } else {
     companies = await companyModel
-      .find({ creator: req.user.id })
+      .find({ creator: req.user.id, ...archivedFilter })
       .sort({ createdAt: -1 }).populate('creator', 'name');
   }
 

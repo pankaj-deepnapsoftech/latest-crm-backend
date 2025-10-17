@@ -987,10 +987,64 @@ const allLeads = TryCatch(async (req, res) => {
     };
   });
 
+  // Fetch archived Individuals (People) with status 'Not Interested'
+  let archivedPeople = [];
+  if (req.user.role === "Super Admin") {
+    archivedPeople = await peopleModel
+      .find({ organization: req.user.organization, isArchived: true, status: "Not Interested" })
+      .sort({ createdAt: -1 })
+      .populate("creator", "name");
+  } else {
+    archivedPeople = await peopleModel
+      .find({ organization: req.user.organization, creator: req.user.id, isArchived: true, status: "Not Interested" })
+      .sort({ createdAt: -1 })
+      .populate("creator", "name");
+  }
+
+  const archivedIndividuals = archivedPeople.map((p) => ({
+    _id: p._id,
+    name: `${p.firstname}${p.lastname ? " " + p.lastname : ""}`,
+    status: p.status,
+    email: p.email,
+    phone: p.phone,
+    leadtype: "People",
+    creator: p.creator?.name,
+    createdAt: p.createdAt,
+    dataBank: false,
+  }));
+
+  // Fetch archived Companies with status 'Not Interested'
+  let archivedCos = [];
+  if (req.user.role === "Super Admin") {
+    archivedCos = await companyModel
+      .find({ organization: req.user.organization, isArchived: true, status: "Not Interested" })
+      .sort({ createdAt: -1 })
+      .populate("creator", "name");
+  } else {
+    archivedCos = await companyModel
+      .find({ organization: req.user.organization, creator: req.user.id, isArchived: true, status: "Not Interested" })
+      .sort({ createdAt: -1 })
+      .populate("creator", "name");
+  }
+
+  const archivedCompanies = archivedCos.map((c) => ({
+    _id: c._id,
+    name: c.companyname,
+    status: c.status,
+    email: c.email,
+    phone: c.phone,
+    leadtype: "Company",
+    creator: c.creator?.name,
+    createdAt: c.createdAt,
+    dataBank: false,
+  }));
+
   res.status(200).json({
     status: 200,
     success: true,
     leads: results,
+    archivedIndividuals,
+    archivedCompanies,
   });
 });
 

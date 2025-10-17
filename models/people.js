@@ -38,6 +38,15 @@ const peopleSchema = mongoose.Schema(
       type: String,
       // required: [true, "phone is a required field"],
     },
+    status: {
+      type: String,
+      default: "",
+    },
+    isArchived: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     otp: {
       type: Number,
     },

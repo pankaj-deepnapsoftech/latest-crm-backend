@@ -51,7 +51,12 @@ const companySchema = mongoose.Schema(
     },
     status: {
       type: String,
-      default: "Not Pick",
+      default: "",
+    },
+    isArchived: {
+      type: Boolean,
+      default: false,
+      index: true,
     },
     otp: {
       type: Number,
