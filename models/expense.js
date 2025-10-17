@@ -2,10 +2,20 @@ const mongoose = require("mongoose");
 
 const expenseSchema = mongoose.Schema(
   {
+    expenseType: {
+      type: String,
+      enum: ["TA", "DA"],
+      required: false,
+    },
+    approvalStatus: {
+      type: String,
+      enum: ["Pending", "Approved", "Rejected"],
+      default: "Pending",
+    },
     organization: {
       type: mongoose.Types.ObjectId,
       ref: "Organization",
-      required: [true, 'organization is a required field']
+      required: [true, "organization is a required field"],
     },
     creator: {
       type: mongoose.Types.ObjectId,

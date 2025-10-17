@@ -5,6 +5,11 @@ const leadModel = require("./lead");
 
 const customerSchema = mongoose.Schema(
   {
+    customerId: {
+      type: String,
+      // Not marking unique to avoid index migration issues on existing data
+      // Ensure uniqueness in controller while generating
+    },
     organization: {
       type: mongoose.Types.ObjectId,
       ref: "Organization",
@@ -87,7 +92,6 @@ customerSchema.pre(
     next();
   }
 );
-
 
 const customerModel = mongoose.model("Customer", customerSchema);
 
