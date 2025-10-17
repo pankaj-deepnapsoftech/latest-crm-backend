@@ -6,6 +6,30 @@ const companyModel = require("../../models/company");
 const createCustomer = TryCatch(async (req, res) => {
   const { type, peopleId, companyId } = req.body;
 
+  // Helper to generate next customerId per organization in format CUST-001
+  const generateNextCustomerId = async (organizationId) => {
+    // Find latest customerId for the organization
+    const latest = await customerModel
+      .find({ organization: organizationId, customerId: { $exists: true } })
+      .sort({ createdAt: -1 })
+      .limit(1);
+
+    if (!latest.length || !latest[0].customerId) {
+      return "CUST-001";
+    }
+
+    const lastId = latest[0].customerId; // e.g., CUST-007
+    const match = lastId.match(/^(CUST-)(\d{3})$/);
+    if (!match) {
+      // Fallback if existing format deviates
+      return "CUST-001";
+    }
+    const prefix = match[1];
+    const num = parseInt(match[2], 10) + 1;
+    const nextNum = String(num).padStart(3, "0");
+    return `${prefix}${nextNum}`;
+  };
+
   if (peopleId) {
     const isExistingPeople = await peopleModel.findById(peopleId);
 
@@ -26,6 +50,7 @@ const createCustomer = TryCatch(async (req, res) => {
       creator: req.user.id,
       customertype: type,
       people: peopleId,
+      customerId: await generateNextCustomerId(req.user.organization),
     });
 
     return res.status(200).json({
@@ -54,6 +79,7 @@ const createCustomer = TryCatch(async (req, res) => {
       customertype: type,
       company: companyId,
       creator: req.user.id,
+      customerId: await generateNextCustomerId(req.user.organization),
     });
 
     return res.status(200).json({
@@ -74,7 +100,7 @@ const editCustomer = TryCatch(async (req, res) => {
   if (!isCustomerExists) {
     throw new ErrorHandler("Customer doesn't exists", 400);
   }
-  
+
   if (
     req.user.role !== "Super Admin" &&
     isCustomerExists.creator.toString() !== req.user.id.toString()
@@ -160,7 +186,7 @@ const deleteCustomer = TryCatch(async (req, res) => {
   if (!isCustomerExists) {
     throw new ErrorHandler("Customer doesn't exists", 400);
   }
-  
+
   if (
     req.user.role !== "Super Admin" &&
     isCustomerExists.creator.toString() !== req.user.id.toString()
@@ -199,7 +225,7 @@ const customerDetails = TryCatch(async (req, res) => {
   if (!customer) {
     throw new ErrorHandler("Customer doesn't exists", 400);
   }
-  
+
   if (
     req.user.role !== "Super Admin" &&
     customer.creator.toString() !== req.user.id.toString()
@@ -226,7 +252,7 @@ const customerDetails = TryCatch(async (req, res) => {
           : customer.company?.phone,
       customertype: customer.customertype,
       status: customer.status,
-      products: customer.products
+      products: customer.products,
     },
   });
 });
@@ -236,31 +262,33 @@ const allCustomers = TryCatch(async (req, res) => {
 
   // const totalCustomersPerPage = 10;
   // const skip = (page - 1) * totalCustomersPerPage;
- let customers = [];
+  let customers = [];
 
- if (req.user.role === "Super Admin"){
-  customers = await customerModel
-    .find({organization: req.user.organization})
-    .sort({ createdAt: -1 })
-    .populate("people")
-    .populate("company", "companyname email phone")
-    .populate('creator', 'name');
- }
- else{
-  customers = await customerModel
-  .find({organization: req.user.organization, creator: req.user.id})
-  .sort({ createdAt: -1 })
-  .populate("people")
-  .populate("company", "companyname email phone")
-  .populate('creator', 'name');
- }
+  if (req.user.role === "Super Admin") {
+    customers = await customerModel
+      .find({ organization: req.user.organization })
+      .sort({ createdAt: -1 })
+      .populate("people")
+      .populate("company", "companyname email phone")
+      .populate("creator", "name");
+  } else {
+    customers = await customerModel
+      .find({ organization: req.user.organization, creator: req.user.id })
+      .sort({ createdAt: -1 })
+      .populate("people")
+      .populate("company", "companyname email phone")
+      .populate("creator", "name");
+  }
 
   const results = customers.map((customer) => {
     return {
       _id: customer._id,
+      uniqueId: customer.customerId,
       name:
         customer.people !== undefined
-          ? customer?.people?.firstname + " " + (customer?.people?.lastname || '')
+          ? customer?.people?.firstname +
+            " " +
+            (customer?.people?.lastname || "")
           : customer.company?.companyname,
       email:
         customer.people !== undefined
@@ -273,7 +301,7 @@ const allCustomers = TryCatch(async (req, res) => {
       customertype: customer?.customertype,
       status: customer?.status,
       creator: customer?.creator.name,
-      createdAt: customer?.createdAt
+      createdAt: customer?.createdAt,
     };
   });
 
